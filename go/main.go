@@ -673,7 +673,7 @@ func (h *handlers) GetGrades(c echo.Context) error {
 		"     LEFT JOIN `classes` ON `courses`.`id` = `classes`.`course_id`" +
 		"     LEFT JOIN `submissions` ON `users`.`id` = `submissions`.`user_id` AND `submissions`.`class_id` = `classes`.`id`" +
 		"     WHERE `users`.`type` = ?" +
-		"     GROUP BY `users`.`id`, `courses`.`id`, `courses`.`credit`"
+		"     GROUP BY `users`.`id`, `courses`.`id`, `courses`.`credit`" +
 		" ) AS `credits`" +
 		" GROUP BY `user_id`"
 	if err := h.DB.SelectContext(c.Request().Context(), &gpas, query, StatusClosed, Student); err != nil {
