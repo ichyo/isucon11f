@@ -662,14 +662,10 @@ func (h *handlers) GetGrades(c echo.Context) error {
 			TotalScore int    `db:"total_score"`
 		}
 		var items []Item
-		query, args, err := sqlx.In("SELECT `courses`.`id` AS course_id_, IFNULL(SUM(`submissions`.`score`), 0) AS `total_score`"+
-			" FROM `users`"+
-			" JOIN `registrations` ON `users`.`id` = `registrations`.`user_id`"+
-			" JOIN `courses` ON `registrations`.`course_id` = `courses`.`id`"+
-			" LEFT JOIN `classes` ON `courses`.`id` = `classes`.`course_id`"+
-			" LEFT JOIN `submissions` ON `users`.`id` = `submissions`.`user_id` AND `submissions`.`class_id` = `classes`.`id`"+
-			" WHERE `courses`.`id` IN (?)"+
-			" GROUP BY `courses`.`id`, `users`.`id`", courseIDs)
+		query, args, err := sqlx.In("SELECT registrations.course_id AS course_id_, IFNULL(SUM(`submissions`.`score`), 0) AS `total_score`"+
+			" FROM `registrations` LEFT JOIN submissions ON submissions.user_id = registrations.user_id AND submissions.course_id = registrations.course_id"+
+			" WHERE `registrations`.`course_id` IN (?)"+
+			" GROUP BY `registrations`.`course_id`, `registrations`.`user_id`", courseIDs)
 		if err != nil {
 			c.Logger().Error(err)
 			return c.NoContent(http.StatusInternalServerError)
