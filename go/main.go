@@ -1291,7 +1291,7 @@ func (h *handlers) RegisterScores(c echo.Context) error {
 		return c.String(http.StatusBadRequest, "Invalid format.")
 	}
 
-	var courseID int
+	var courseID string
 	if err := tx.GetContext(c.Request().Context(), &courseID, "SELECT course_id FROM classes WHERE id = ?", classID); err != nil {
 		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
