@@ -628,8 +628,8 @@ func (h *handlers) GetGrades(c echo.Context) error {
 		}
 		query = h.DB.Rebind(query)
 		type Score struct {
-			ClassId string `db:"class_id"`
-			Score   int    `db:"score"`
+			ClassId string        `db:"class_id"`
+			Score   sql.NullInt64 `db:"score"`
 		}
 		var scores []Score
 		err = h.DB.SelectContext(c.Request().Context(), &scores, query, args...)
@@ -638,9 +638,11 @@ func (h *handlers) GetGrades(c echo.Context) error {
 			return c.NoContent(http.StatusInternalServerError)
 		}
 
-		scoreMap := make(map[string]int)
+		scoreMap := make(map[string]int64)
 		for _, sc := range scores {
-			scoreMap[sc.ClassId] = sc.Score
+			if sc.Score.Valid {
+				scoreMap[sc.ClassId] = sc.Score.Int64
+			}
 		}
 
 		for _, class := range classes {
