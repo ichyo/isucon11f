@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -121,10 +122,29 @@ func (h *handlers) Initialize(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
+	userAgent := c.Request().Header.Get("User-Agent")
+	if strings.ToLower(userAgent) == "benchmarker-initializer" {
+		execCommandBackground("ssh", "-o", "StrictHostKeyChecking=no", "isu1", "bench_started.sh")
+		execCommandBackground("ssh", "-o", "StrictHostKeyChecking=no", "isu2", "bench_started.sh")
+		execCommandBackground("ssh", "-o", "StrictHostKeyChecking=no", "isu3", "bench_started.sh")
+	}
+
 	res := InitializeResponse{
 		Language: "go",
 	}
 	return c.JSON(http.StatusOK, res)
+}
+
+func execCommandBackground(command string, args ...string) {
+	go func() {
+		cmd := exec.Command(command, args...)
+		err := cmd.Run()
+		if err != nil {
+			log.Println("error on exec", command, args, err)
+		} else {
+			log.Println("exec completed", command, args)
+		}
+	}()
 }
 
 // IsLoggedIn ログイン確認用middleware
