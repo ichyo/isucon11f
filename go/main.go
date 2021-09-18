@@ -1302,7 +1302,7 @@ func (h *handlers) RegisterScores(c echo.Context) error {
 			c.Logger().Error(err)
 			return c.NoContent(http.StatusInternalServerError)
 		}
-		if _, err := tx.ExecContext(c.Request().Context(), "UPDATE `registrations` JOIN `users` ON `users`.`id` = `registrations`.`user_id` SET `score` = ? + `score` WHERE `users`.`code` = ? AND `course_id` = ?", score.Score, score.UserCode, courseID); err != nil {
+		if _, err := tx.ExecContext(c.Request().Context(), "UPDATE `registrations` JOIN `users` ON `users`.`id` = `registrations`.`user_id` SET `total_score` = ? + `total_score` WHERE `users`.`code` = ? AND `course_id` = ?", score.Score, score.UserCode, courseID); err != nil {
 			c.Logger().Error(err)
 			return c.NoContent(http.StatusInternalServerError)
 		}
