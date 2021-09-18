@@ -653,7 +653,7 @@ func (h *handlers) GetGrades(c echo.Context) error {
 
 		var result CourseResultQuery
 
-		if err := h.DB.SelectContext(c.Request().Context(), &result, query, course.ID); err != nil {
+		if err := h.DB.GetContext(c.Request().Context(), &result, query, course.ID); err != nil {
 			c.Logger().Error(err)
 			return c.NoContent(http.StatusInternalServerError)
 		}
