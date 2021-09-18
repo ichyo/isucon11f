@@ -130,7 +130,7 @@ func (h *handlers) Initialize(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 	for _, r := range result {
-		_, err = dbForInit.Exec("UPDATE registrations SET score = ? WHERE user_id = ? AND course_id = ?", r.Score, r.UserID, r.CourseID)
+		_, err = dbForInit.Exec("UPDATE registrations SET total_score = ? WHERE user_id = ? AND course_id = ?", r.Score, r.UserID, r.CourseID)
 		if err != nil {
 			c.Logger().Error(err)
 			return c.NoContent(http.StatusInternalServerError)
