@@ -574,99 +574,115 @@ func (h *handlers) GetGrades(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
+	// 講義一覧の取得
+	var classes_ []Class
+	query = "SELECT `classes`.*" +
+		" FROM `classes` JOIN registrations ON registrations.course_id = classes.course_id" +
+		" WHERE registrations.user_id = ?" +
+		" ORDER BY `part` DESC"
+	if err := h.DB.SelectContext(c.Request().Context(), &classes_, query, userID); err != nil {
+		c.Logger().Error(err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+
+	classesByCourse := make(map[string][]Class)
+	for _, c := range classes_ {
+		if _, ok := classesByCourse[c.CourseID]; !ok {
+			classesByCourse[c.CourseID] = make([]Class, 0)
+		}
+		classesByCourse[c.CourseID] = append(classesByCourse[c.CourseID], c)
+	}
+
+	classIds := make([]string, 0)
+	for _, class := range classes_ {
+		classIds = append(classIds, class.ID)
+	}
+
+	type Counter struct {
+		ClassId string `db:"class_id"`
+		Count   int    `db:"count"`
+	}
+	counter := make([]Counter, 0)
+	if len(classes_) > 0 {
+		query, args, err := sqlx.In("SELECT class_id, COUNT(*) AS count FROM submissions WHERE class_id IN (?) GROUP BY class_id", classIds)
+		if err != nil {
+			c.Logger().Error(err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+		query = h.DB.Rebind(query)
+		err = h.DB.SelectContext(c.Request().Context(), &counter, query, args...)
+		if err != nil {
+			c.Logger().Error(err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+	}
+
+	countMap := make(map[string]int)
+	for _, ct := range counter {
+		countMap[ct.ClassId] = ct.Count
+	}
+
+	type Score struct {
+		ClassId string        `db:"class_id"`
+		Score   sql.NullInt64 `db:"score"`
+	}
+	scores := make([]Score, 0)
+
+	if len(classes_) > 0 {
+		query, args, err := sqlx.In("SELECT class_id, submissions.score AS score FROM submissions WHERE user_id = ? AND class_id IN (?) GROUP BY class_id", userID, classIds)
+		if err != nil {
+			c.Logger().Error(err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+		query = h.DB.Rebind(query)
+		err = h.DB.SelectContext(c.Request().Context(), &scores, query, args...)
+		if err != nil {
+			c.Logger().Error(err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+	}
+
+	scoreMap := make(map[string]int64)
+	for _, sc := range scores {
+		if sc.Score.Valid {
+			scoreMap[sc.ClassId] = sc.Score.Int64
+		}
+	}
+
 	// 科目毎の成績計算処理
 	courseResults := make([]CourseResult, 0, len(registeredCourses))
 	myGPA := 0.0
 	myCredits := 0
 	for _, course := range registeredCourses {
-		// 講義一覧の取得
-		var classes []Class
-		query = "SELECT *" +
-			" FROM `classes`" +
-			" WHERE `course_id` = ?" +
-			" ORDER BY `part` DESC"
-		if err := h.DB.SelectContext(c.Request().Context(), &classes, query, course.ID); err != nil {
-			c.Logger().Error(err)
-			return c.NoContent(http.StatusInternalServerError)
+		classes := make([]Class, 0)
+		if x, ok := classesByCourse[course.ID]; ok {
+			classes = x
 		}
 
 		// 講義毎の成績計算処理
 		classScores := make([]ClassScore, 0, len(classes))
 		var myTotalScore int
 
-		if len(classes) > 0 {
-			classIds := make([]string, 0)
-			for _, class := range classes {
-				classIds = append(classIds, class.ID)
-			}
-
-			query, args, err := sqlx.In("SELECT class_id, COUNT(*) AS count FROM submissions WHERE class_id IN (?) GROUP BY class_id", classIds)
-			if err != nil {
-				c.Logger().Error(err)
-				return c.NoContent(http.StatusInternalServerError)
-			}
-			query = h.DB.Rebind(query)
-			type Counter struct {
-				ClassId string `db:"class_id"`
-				Count   int    `db:"count"`
-			}
-			var counter []Counter
-			err = h.DB.SelectContext(c.Request().Context(), &counter, query, args...)
-			if err != nil {
-				c.Logger().Error(err)
-				return c.NoContent(http.StatusInternalServerError)
-			}
-
-			countMap := make(map[string]int)
-			for _, ct := range counter {
-				countMap[ct.ClassId] = ct.Count
-			}
-
-			query, args, err = sqlx.In("SELECT class_id, submissions.score AS score FROM submissions WHERE user_id = ? AND class_id IN (?) GROUP BY class_id", userID, classIds)
-			if err != nil {
-				c.Logger().Error(err)
-				return c.NoContent(http.StatusInternalServerError)
-			}
-			query = h.DB.Rebind(query)
-			type Score struct {
-				ClassId string        `db:"class_id"`
-				Score   sql.NullInt64 `db:"score"`
-			}
-			var scores []Score
-			err = h.DB.SelectContext(c.Request().Context(), &scores, query, args...)
-			if err != nil {
-				c.Logger().Error(err)
-				return c.NoContent(http.StatusInternalServerError)
-			}
-
-			scoreMap := make(map[string]int64)
-			for _, sc := range scores {
-				if sc.Score.Valid {
-					scoreMap[sc.ClassId] = sc.Score.Int64
-				}
-			}
-
-			for _, class := range classes {
-				submissionsCount := countMap[class.ID]
-				if myScore, ok := scoreMap[class.ID]; ok {
-					score := int(myScore)
-					myTotalScore += score
-					classScores = append(classScores, ClassScore{
-						ClassID:    class.ID,
-						Part:       class.Part,
-						Title:      class.Title,
-						Score:      &score,
-						Submitters: submissionsCount,
-					})
-				} else {
-					classScores = append(classScores, ClassScore{
-						ClassID:    class.ID,
-						Part:       class.Part,
-						Title:      class.Title,
-						Score:      nil,
-						Submitters: submissionsCount,
-					})
-				}
+		for _, class := range classes {
+			submissionsCount := countMap[class.ID]
+			if myScore, ok := scoreMap[class.ID]; ok {
+				score := int(myScore)
+				myTotalScore += score
+				classScores = append(classScores, ClassScore{
+					ClassID:    class.ID,
+					Part:       class.Part,
+					Title:      class.Title,
+					Score:      &score,
+					Submitters: submissionsCount,
+				})
+			} else {
+				classScores = append(classScores, ClassScore{
+					ClassID:    class.ID,
+					Part:       class.Part,
+					Title:      class.Title,
+					Score:      nil,
+					Submitters: submissionsCount,
+				})
 			}
 		}
 
