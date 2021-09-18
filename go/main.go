@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -13,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 
+	"cloud.google.com/go/profiler"
 	"github.com/go-sql-driver/mysql"
 	"github.com/gorilla/sessions"
 	"github.com/jmoiron/sqlx"
@@ -34,7 +36,19 @@ type handlers struct {
 	DB *sqlx.DB
 }
 
+func initProfiler(name string) {
+	if err := profiler.Start(profiler.Config{
+		Service:        name,
+		ServiceVersion: "1.0.0",
+		ProjectID:      os.Getenv("GOOGLE_CLOUD_PROJECT"),
+	}); err != nil {
+		log.Fatal(err)
+	}
+}
+
 func main() {
+	initProfiler("isucon11f")
+
 	e := echo.New()
 	e.Debug = GetEnv("DEBUG", "") == "true"
 	e.Server.Addr = fmt.Sprintf(":%v", GetEnv("PORT", "7000"))
