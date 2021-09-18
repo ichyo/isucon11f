@@ -663,7 +663,9 @@ func (h *handlers) GetGrades(c echo.Context) error {
 		}
 		var items []Item
 		query, args, err := sqlx.In("SELECT registrations.course_id AS course_id_, IFNULL(SUM(`submissions`.`score`), 0) AS `total_score`"+
-			" FROM `registrations` LEFT JOIN submissions ON submissions.user_id = registrations.user_id AND submissions.course_id = registrations.course_id"+
+			" FROM `registrations` "+
+			" JOIN classes ON classes.course_id = registrations.course_id"+
+			" LEFT JOIN submissions ON submissions.user_id = registrations.user_id AND submissions.class_id = classes.id"+
 			" WHERE `registrations`.`course_id` IN (?)"+
 			" GROUP BY `registrations`.`course_id`, `registrations`.`user_id`", courseIDs)
 		if err != nil {
