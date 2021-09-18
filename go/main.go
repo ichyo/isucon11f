@@ -649,6 +649,43 @@ func (h *handlers) GetGrades(c echo.Context) error {
 		}
 	}
 
+	courseIDs := make([]string, 0)
+	for _, c := range registeredCourses {
+		courseIDs = append(courseIDs, c.ID)
+	}
+
+	totalsByCourseId := make(map[string][]int)
+	if len(courseIDs) > 0 {
+		// この科目を履修している学生のTotalScore一覧を取得
+		type Item struct {
+			courseId   string `db:"course_id_"`
+			totalScore int    `db:"total_score"`
+		}
+		var items []Item
+		query, args, err := sqlx.In("SELECT `courses`.`id` AS course_id_, IFNULL(SUM(`submissions`.`score`), 0) AS `total_score`"+
+			" FROM `users`"+
+			" JOIN `registrations` ON `users`.`id` = `registrations`.`user_id`"+
+			" JOIN `courses` ON `registrations`.`course_id` = `courses`.`id`"+
+			" LEFT JOIN `classes` ON `courses`.`id` = `classes`.`course_id`"+
+			" LEFT JOIN `submissions` ON `users`.`id` = `submissions`.`user_id` AND `submissions`.`class_id` = `classes`.`id`"+
+			" WHERE `courses`.`id` IN (?)"+
+			" GROUP BY `courses`.`id`, `users`.`id`", courseIDs)
+		if err != nil {
+			c.Logger().Error(err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+		if err := h.DB.SelectContext(c.Request().Context(), &items, query, args...); err != nil {
+			c.Logger().Error(err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+		for _, i := range items {
+			if _, ok := totalsByCourseId[i.courseId]; !ok {
+				totalsByCourseId[i.courseId] = make([]int, 0)
+			}
+			totalsByCourseId[i.courseId] = append(totalsByCourseId[i.courseId], i.totalScore)
+		}
+	}
+
 	// 科目毎の成績計算処理
 	courseResults := make([]CourseResult, 0, len(registeredCourses))
 	myGPA := 0.0
@@ -686,19 +723,9 @@ func (h *handlers) GetGrades(c echo.Context) error {
 			}
 		}
 
-		// この科目を履修している学生のTotalScore一覧を取得
-		var totals []int
-		query = "SELECT IFNULL(SUM(`submissions`.`score`), 0) AS `total_score`" +
-			" FROM `users`" +
-			" JOIN `registrations` ON `users`.`id` = `registrations`.`user_id`" +
-			" JOIN `courses` ON `registrations`.`course_id` = `courses`.`id`" +
-			" LEFT JOIN `classes` ON `courses`.`id` = `classes`.`course_id`" +
-			" LEFT JOIN `submissions` ON `users`.`id` = `submissions`.`user_id` AND `submissions`.`class_id` = `classes`.`id`" +
-			" WHERE `courses`.`id` = ?" +
-			" GROUP BY `users`.`id`"
-		if err := h.DB.SelectContext(c.Request().Context(), &totals, query, course.ID); err != nil {
-			c.Logger().Error(err)
-			return c.NoContent(http.StatusInternalServerError)
+		totals := make([]int, 0)
+		if value, ok := totalsByCourseId[course.ID]; ok {
+			totals = value
 		}
 
 		courseResults = append(courseResults, CourseResult{
