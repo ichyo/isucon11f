@@ -32,7 +32,7 @@ func initTrace() {
 	}
 	trace.RegisterExporter(exporter)
 
-	trace.ApplyConfig(trace.Config{DefaultSampler: trace.ProbabilitySampler(0.5)})
+	trace.ApplyConfig(trace.Config{DefaultSampler: trace.AlwaysSample()})
 }
 
 func withTrace(h http.Handler) http.Handler {
