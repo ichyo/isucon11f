@@ -116,6 +116,27 @@ func (h *handlers) Initialize(c echo.Context) error {
 		}
 	}
 
+	type Result struct {
+		UserID   string `db:"user_id"`
+		CourseID string `db:"course_id"`
+		Score    int    `db:"score"`
+	}
+
+	var result []Result
+
+	err := dbForInit.Select(&result, "SELECT user_id, classes.course_id, SUM(score) FROM submissions JOIN classes ON classes.id = submissions.class_id GROUP BY user_id, classes.course_id")
+	if err != nil {
+		c.Logger().Error(err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+	for _, r := range result {
+		_, err = dbForInit.Exec("UPDATE registrations SET score = ? WHERE user_id = ? AND course_id = ?", r.Score, r.UserID, r.CourseID)
+		if err != nil {
+			c.Logger().Error(err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+	}
+
 	if err := exec.Command("rm", "-rf", AssignmentsDirectory).Run(); err != nil {
 		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
@@ -658,14 +679,12 @@ func (h *handlers) GetGrades(c echo.Context) error {
 	if len(courseIDs) > 0 {
 		// この科目を履修している学生のTotalScore一覧を取得
 		type Item struct {
-			CourseId   string `db:"course_id_"`
+			CourseId   string `db:"course_id"`
 			TotalScore int    `db:"total_score"`
 		}
 		var items []Item
-		query, args, err := sqlx.In("SELECT registrations.course_id AS course_id_, IFNULL(SUM(`submissions`.`score`), 0) AS `total_score`"+
+		query, args, err := sqlx.In("SELECT course_id, total_score"+
 			" FROM `registrations` "+
-			" JOIN classes ON classes.course_id = registrations.course_id"+
-			" LEFT JOIN submissions ON submissions.user_id = registrations.user_id AND submissions.class_id = classes.id"+
 			" WHERE `registrations`.`course_id` IN (?)"+
 			" GROUP BY `registrations`.`course_id`, `registrations`.`user_id`", courseIDs)
 		if err != nil {
@@ -1272,8 +1291,18 @@ func (h *handlers) RegisterScores(c echo.Context) error {
 		return c.String(http.StatusBadRequest, "Invalid format.")
 	}
 
+	var courseID int
+	if err := tx.GetContext(c.Request().Context(), &courseID, "SELECT course_id FROM classes WHERE id = ?", classID); err != nil {
+		c.Logger().Error(err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+
 	for _, score := range req {
 		if _, err := tx.ExecContext(c.Request().Context(), "UPDATE `submissions` JOIN `users` ON `users`.`id` = `submissions`.`user_id` SET `score` = ? WHERE `users`.`code` = ? AND `class_id` = ?", score.Score, score.UserCode, classID); err != nil {
+			c.Logger().Error(err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+		if _, err := tx.ExecContext(c.Request().Context(), "UPDATE `registrations` JOIN `users` ON `users`.`id` = `registrations`.`user_id` SET `score` = ? + `score` WHERE `users`.`code` = ? AND `course_id` = ?", score.Score, score.UserCode, courseID); err != nil {
 			c.Logger().Error(err)
 			return c.NoContent(http.StatusInternalServerError)
 		}
