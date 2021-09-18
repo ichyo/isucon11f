@@ -37,7 +37,6 @@ CREATE TABLE `registrations`
 (
     `course_id` CHAR(26),
     `user_id`   CHAR(26),
-    `total_score` INT NOT NULL DEFAULT 0,
     PRIMARY KEY (`course_id`, `user_id`),
     CONSTRAINT FK_registrations_course_id FOREIGN KEY (`course_id`) REFERENCES `courses` (`id`),
     CONSTRAINT FK_registrations_user_id FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
