@@ -124,7 +124,7 @@ func (h *handlers) Initialize(c echo.Context) error {
 
 	var result []Result
 
-	err := dbForInit.Select(&result, "SELECT user_id, classes.course_id, SUM(score) FROM submissions JOIN classes ON classes.id = submissions.class_id GROUP BY user_id, classes.course_id")
+	err := dbForInit.Select(&result, "SELECT user_id, classes.course_id, SUM(score) AS score FROM submissions JOIN classes ON classes.id = submissions.class_id GROUP BY user_id, classes.course_id")
 	if err != nil {
 		c.Logger().Error(err)
 		return c.NoContent(http.StatusInternalServerError)
