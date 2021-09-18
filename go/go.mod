@@ -14,6 +14,8 @@ require (
 
 require (
 	cloud.google.com/go/profiler v0.1.0
+	contrib.go.opencensus.io/exporter/stackdriver v0.13.8
+	contrib.go.opencensus.io/integrations/ocsql v0.1.7
 	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
 	github.com/google/pprof v0.0.0-20210827144239-02619b876842 // indirect
 	github.com/gorilla/context v1.1.1 // indirect
@@ -23,19 +25,24 @@ require (
 	github.com/mattn/go-isatty v0.0.12 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.1 // indirect
+	go.opencensus.io v0.23.0
 	golang.org/x/text v0.3.6 // indirect
 	golang.org/x/time v0.0.0-20201208040808-7e3f01d25324 // indirect
 )
 
 require (
 	cloud.google.com/go v0.92.2 // indirect
+	cloud.google.com/go/trace v0.1.0 // indirect
+	github.com/aws/aws-sdk-go v1.37.0 // indirect
+	github.com/census-instrumentation/opencensus-proto v0.3.0 // indirect
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/go-cmp v0.5.6 // indirect
 	github.com/googleapis/gax-go/v2 v2.0.5 // indirect
-	go.opencensus.io v0.23.0 // indirect
+	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	golang.org/x/net v0.0.0-20210503060351-7fd8e65b6420 // indirect
 	golang.org/x/oauth2 v0.0.0-20210805134026-6f1e6394065a // indirect
+	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
 	golang.org/x/sys v0.0.0-20210806184541-e5e7981a1069 // indirect
 	google.golang.org/api v0.54.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
