@@ -658,8 +658,8 @@ func (h *handlers) GetGrades(c echo.Context) error {
 	if len(courseIDs) > 0 {
 		// この科目を履修している学生のTotalScore一覧を取得
 		type Item struct {
-			courseId   string `db:"course_id_"`
-			totalScore int    `db:"total_score"`
+			CourseId   string `db:"course_id_"`
+			TotalScore int    `db:"total_score"`
 		}
 		var items []Item
 		query, args, err := sqlx.In("SELECT `courses`.`id` AS course_id_, IFNULL(SUM(`submissions`.`score`), 0) AS `total_score`"+
@@ -679,10 +679,10 @@ func (h *handlers) GetGrades(c echo.Context) error {
 			return c.NoContent(http.StatusInternalServerError)
 		}
 		for _, i := range items {
-			if _, ok := totalsByCourseId[i.courseId]; !ok {
-				totalsByCourseId[i.courseId] = make([]int, 0)
+			if _, ok := totalsByCourseId[i.CourseId]; !ok {
+				totalsByCourseId[i.CourseId] = make([]int, 0)
 			}
-			totalsByCourseId[i.courseId] = append(totalsByCourseId[i.courseId], i.totalScore)
+			totalsByCourseId[i.CourseId] = append(totalsByCourseId[i.CourseId], i.TotalScore)
 		}
 	}
 
