@@ -27,7 +27,7 @@ func GetDB(batch bool) (*sqlx.DB, error) {
 		return sqlx.Open("mysql", mysqlConfig.FormatDSN())
 	}
 
-	db, err := sql.Open(tracedDriver("mysql"), mysqlConfig.FormatDSN())
+	db, err := sql.Open("mysql", mysqlConfig.FormatDSN())
 	if err != nil {
 		return nil, err
 	}
