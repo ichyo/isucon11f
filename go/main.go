@@ -662,19 +662,14 @@ func (h *handlers) GetGrades(c echo.Context) error {
 			TotalScore int    `db:"total_score"`
 		}
 		var items []Item
-		query, args, err := sqlx.In("SELECT `courses`.`id` AS course_id_, IFNULL(SUM(`submissions`.`score`), 0) AS `total_score`"+
-			" FROM `users`"+
-			" JOIN `registrations` ON `users`.`id` = `registrations`.`user_id`"+
-			" JOIN `courses` ON `registrations`.`course_id` = `courses`.`id`"+
-			" LEFT JOIN `classes` ON `courses`.`id` = `classes`.`course_id`"+
-			" LEFT JOIN `submissions` ON `users`.`id` = `submissions`.`user_id` AND `submissions`.`class_id` = `classes`.`id`"+
-			" WHERE `courses`.`id` IN (?)"+
-			" GROUP BY `courses`.`id`, `users`.`id`", courseIDs)
-		if err != nil {
-			c.Logger().Error(err)
-			return c.NoContent(http.StatusInternalServerError)
-		}
-		if err := h.DB.SelectContext(c.Request().Context(), &items, query, args...); err != nil {
+		query := "SELECT `courses`.`id` AS course_id_, IFNULL(SUM(`submissions`.`score`), 0) AS `total_score`" +
+			" FROM `users`" +
+			" JOIN `registrations` ON `users`.`id` = `registrations`.`user_id`" +
+			" JOIN (SELECT courses.* FROM registrations JOIN courses ON registrations.course_id = courses.id WHERE user_id = ?) ON `registrations`.`course_id` = `courses`.`id`" +
+			" LEFT JOIN `classes` ON `courses`.`id` = `classes`.`course_id`" +
+			" LEFT JOIN `submissions` ON `users`.`id` = `submissions`.`user_id` AND `submissions`.`class_id` = `classes`.`id`" +
+			" GROUP BY `courses`.`id`, `users`.`id`"
+		if err := h.DB.SelectContext(c.Request().Context(), &items, query, userID); err != nil {
 			c.Logger().Error(err)
 			return c.NoContent(http.StatusInternalServerError)
 		}
