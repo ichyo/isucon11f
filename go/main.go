@@ -665,7 +665,7 @@ func (h *handlers) GetGrades(c echo.Context) error {
 		query := "SELECT `courses`.`id` AS course_id_, IFNULL(SUM(`submissions`.`score`), 0) AS `total_score`" +
 			" FROM `users`" +
 			" JOIN `registrations` ON `users`.`id` = `registrations`.`user_id`" +
-			" JOIN (SELECT courses.* FROM registrations JOIN courses ON registrations.course_id = courses.id WHERE user_id = ?) ON `registrations`.`course_id` = `courses`.`id`" +
+			" JOIN (SELECT courses.* FROM registrations JOIN courses ON registrations.course_id = courses.id WHERE user_id = ?) AS courses ON `registrations`.`course_id` = `courses`.`id`" +
 			" LEFT JOIN `classes` ON `courses`.`id` = `classes`.`course_id`" +
 			" LEFT JOIN `submissions` ON `users`.`id` = `submissions`.`user_id` AND `submissions`.`class_id` = `classes`.`id`" +
 			" GROUP BY `courses`.`id`, `users`.`id`"
