@@ -35,9 +35,6 @@ type handlers struct {
 }
 
 func main() {
-	initProfiler("isucon11f")
-	initTrace()
-
 	e := echo.New()
 	e.Debug = GetEnv("DEBUG", "") == "true"
 	e.Server.Addr = fmt.Sprintf(":%v", GetEnv("PORT", "7000"))
