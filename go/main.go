@@ -547,6 +547,14 @@ type CourseResult struct {
 	ClassScores      []ClassScore `json:"class_scores"`
 }
 
+
+type CourseResultQuery struct {
+	TotalScoreStddev float64      `db:"score_stddev"` // 標準偏差
+	TotalScoreAvg    float64      `db:"score_avg"`     // 平均値
+	TotalScoreMax    int          `db:"score_max"`     // 最大値
+	TotalScoreMin    int          `db:"score_min"`     // 最小値
+}
+
 type ClassScore struct {
 	ClassID    string `json:"class_id"`
 	Title      string `json:"title"`
@@ -626,28 +634,45 @@ func (h *handlers) GetGrades(c echo.Context) error {
 		}
 
 		// この科目を履修している学生のTotalScore一覧を取得
-		var totals []int
-		query := "SELECT IFNULL(SUM(`submissions`.`score`), 0) AS `total_score`" +
-			" FROM `users`" +
-			" JOIN `registrations` ON `users`.`id` = `registrations`.`user_id`" +
-			" JOIN `courses` ON `registrations`.`course_id` = `courses`.`id`" +
-			" LEFT JOIN `classes` ON `courses`.`id` = `classes`.`course_id`" +
-			" LEFT JOIN `submissions` ON `users`.`id` = `submissions`.`user_id` AND `submissions`.`class_id` = `classes`.`id`" +
-			" WHERE `courses`.`id` = ?" +
-			" GROUP BY `users`.`id`"
-		if err := h.DB.SelectContext(c.Request().Context(), &totals, query, course.ID); err != nil {
+		// min, max, avg, stddev を取得
+		query := "SELECT IFNULL(MIN(`totals`.`total_score`), 0) AS `score_min`," +
+		"       IFNULL(MAX(`totals`.`total_score`), 0) AS `score_max`," +
+		"       IFNULL(AVG(`totals`.`total_score`), 0) AS `score_avg`," +
+		"       IFNULL(STDDEV(`totals`.`total_score`), 0) AS `score_stddev`" +
+		" FROM (" +
+		"   SELECT SUM(`submissions`.`score`) AS `total_score`" +
+		"   FROM `users`" +
+		"   JOIN `registrations` ON `users`.`id` = `registrations`.`user_id`" +
+		"   JOIN `courses` ON `registrations`.`course_id` = `courses`.`id`" +
+		"   LEFT JOIN `classes` ON `courses`.`id` = `classes`.`course_id`" +
+		"   LEFT JOIN `submissions` ON `users`.`id` = `submissions`.`user_id` AND `submissions`.`class_id` = `classes`.`id`" +
+		"   WHERE `courses`.`id` = ?" +
+		"   GROUP BY `users`.`id`" +
+		" ) AS `totals`"
+
+
+		var result CourseResultQuery
+
+		if err := h.DB.SelectContext(c.Request().Context(), &result, query, course.ID); err != nil {
 			c.Logger().Error(err)
 			return c.NoContent(http.StatusInternalServerError)
+		}
+
+		var tScore float64
+		if result.TotalScoreStddev == 0 {
+			tScore = 50
+		} else {
+			tScore = (float64(myTotalScore) - result.TotalScoreAvg) / result.TotalScoreStddev * 10 + 50
 		}
 
 		courseResults = append(courseResults, CourseResult{
 			Name:             course.Name,
 			Code:             course.Code,
 			TotalScore:       myTotalScore,
-			TotalScoreTScore: tScoreInt(myTotalScore, totals),
-			TotalScoreAvg:    averageInt(totals, 0),
-			TotalScoreMax:    maxInt(totals, 0),
-			TotalScoreMin:    minInt(totals, 0),
+			TotalScoreTScore: tScore,
+			TotalScoreAvg:    result.TotalScoreAvg,
+			TotalScoreMax:    result.TotalScoreMax,
+			TotalScoreMin:    result.TotalScoreMin,
 			ClassScores:      classScores,
 		})
 
